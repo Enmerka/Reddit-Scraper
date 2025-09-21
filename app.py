@@ -10,8 +10,6 @@ from fuzzywuzzy import fuzz
 import inflect
 from collections import defaultdict
 
-st.write("Secrets keys available:", list(st.secrets.keys()))
-
 # === Reddit API Setup ===
 reddit = praw.Reddit(
     client_id=st.secrets["client_id"],
