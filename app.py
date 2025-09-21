@@ -306,7 +306,7 @@ col1, col2 = st.columns(2)
 with col1:
     keyword_input = st.text_area(
         "Enter keywords (one per line or comma-separated)",
-        placeholder="engagement ring\ncustom ring\nwedding band\nmoissanite",
+        placeholder="aquarium mat\nfish tank\nwedding band\nmoissanite",
         help="Supports multiple keywords, synonyms, and automatic plural variations"
     )
 
