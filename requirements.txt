@@ -1,7 +1,8 @@
 streamlit
 praw
 pandas
-altairmatplotlib
+altair
+matplotlib
 wordcloud
-fuzzywuzzy
-nflect
+fuzzywuzzy 
+inflect
