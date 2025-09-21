@@ -1,4 +1,3 @@
-pip install --upgrade pip
 import streamlit as st
 import praw
 import pandas as pd
@@ -23,34 +22,24 @@ reddit.read_only = True
 p = inflect.engine()
 
 # === Enhanced Helper Functions ===
-# These are the requirements for Github
-#streamlit
-# praw
-# pandas
-# altair
-# matplotlib
-# wordcloud
-# fuzzywuzzy
-# nflect
-
 
 def generate_keyword_variations(keyword):
     """Generate variations of a keyword including plurals, spacing, hyphens"""
     variations = set()
     keyword_clean = keyword.strip().lower()
-
+    
     # Original keyword
     variations.add(keyword_clean)
-
+    
     # Handle multi-word keywords
     words = keyword_clean.split()
-
+    
     if len(words) > 1:
         # Add hyphenated version
         variations.add('-'.join(words))
         # Add no space version
         variations.add(''.join(words))
-
+        
         # Generate plurals for each word and combinations
         for i, word in enumerate(words):
             plural_word = p.plural(word)
@@ -61,47 +50,47 @@ def generate_keyword_variations(keyword):
                 variations.add(' '.join(plural_words))
                 variations.add('-'.join(plural_words))
                 variations.add(''.join(plural_words))
-
+    
     # Single word pluralization
     if len(words) == 1:
         plural = p.plural(keyword_clean)
         if plural and plural != keyword_clean:
             variations.add(plural)
-
+    
     # Add variations with different spacing
     if len(words) > 1:
         # Try different combinations
         variations.add(' '.join(words))
         variations.add('_'.join(words))
-
+    
     return list(variations)
 
 def process_multiple_keywords(keyword_input):
     """Process multiple keywords and generate all variations"""
     if not keyword_input.strip():
         return []
-
+    
     # Split by comma, semicolon, or newline
     keywords = re.split(r'[,;\n]+', keyword_input)
     all_variations = []
-
+    
     for keyword in keywords:
         keyword = keyword.strip()
         if keyword:
             variations = generate_keyword_variations(keyword)
             all_variations.extend(variations)
-
+    
     return list(set(all_variations))  # Remove duplicates
 
 def fuzzy_match_keywords(text, keyword_variations, threshold=80):
     """Check if any keyword variations match the text using fuzzy matching"""
     text_lower = text.lower()
-
+    
     # Direct substring matching first (faster)
     for variation in keyword_variations:
         if variation in text_lower:
             return True, variation, 100
-
+    
     # Fuzzy matching for partial matches
     words = text_lower.split()
     for variation in keyword_variations:
@@ -109,18 +98,18 @@ def fuzzy_match_keywords(text, keyword_variations, threshold=80):
             ratio = fuzz.ratio(variation, word)
             if ratio >= threshold:
                 return True, variation, ratio
-
+        
         # Also check phrase matching
         ratio = fuzz.partial_ratio(variation, text_lower)
         if ratio >= threshold:
             return True, variation, ratio
-
+    
     return False, None, 0
 
 def calculate_marketing_relevance(post_title, post_body):
     """Calculate marketing relevance score based on buying intent and language patterns"""
     text = f"{post_title} {post_body}".lower()
-
+    
     # High-value buying intent signals
     high_intent_phrases = [
         'looking for', 'need help', 'recommendations', 'where to buy', 'best place',
@@ -131,14 +120,14 @@ def calculate_marketing_relevance(post_title, post_body):
         'thinking of buying', 'planning to buy', 'about to purchase',
         'custom', 'made to order', 'personalized', 'bespoke'
     ]
-
+    
     # Medium-value research signals
     medium_intent_phrases = [
         'what do you think', 'opinions', 'thoughts', 'feedback',
         'pros and cons', 'worth it', 'good idea', 'bad idea',
         'how much', 'cost', 'pricing', 'quotes'
     ]
-
+    
     # Low-value signals (already purchased/showing off)
     low_intent_phrases = [
         'my new', 'just got', 'finally received', 'arrived today',
@@ -146,40 +135,40 @@ def calculate_marketing_relevance(post_title, post_body):
         'couldn\'t be happier', 'amazing quality', 'here it is',
         'finally here', 'delivery', 'unboxing'
     ]
-
+    
     # Question indicators (usually high intent)
     question_patterns = ['?', 'how', 'what', 'where', 'when', 'why', 'which', 'who']
-
+    
     score = 0
     reasons = []
-
+    
     # Check for high intent phrases
     for phrase in high_intent_phrases:
         if phrase in text:
             score += 3
             reasons.append(f"High intent: '{phrase}'")
-
+    
     # Check for medium intent phrases
     for phrase in medium_intent_phrases:
         if phrase in text:
             score += 2
             reasons.append(f"Medium intent: '{phrase}'")
-
+    
     # Penalize for low intent phrases
     for phrase in low_intent_phrases:
         if phrase in text:
             score -= 2
             reasons.append(f"Low intent: '{phrase}'")
-
+    
     # Bonus for questions
     question_count = sum(1 for pattern in question_patterns if pattern in text)
     if question_count > 0:
         score += min(question_count, 3)  # Cap at 3 bonus points
         reasons.append(f"Question indicators: {question_count}")
-
+    
     # Normalize score
     max_score = max(score, 0)
-
+    
     return max_score, reasons
 
 def categorize_marketing_potential(score):
@@ -200,49 +189,49 @@ def get_enhanced_reddit_posts(keyword_input, start_date, end_date, subreddits=No
     """Enhanced Reddit post fetching with keyword variations and fuzzy matching"""
     posts = []
     keyword_variations = process_multiple_keywords(keyword_input)
-
+    
     if not keyword_variations:
         return []
-
+    
     # Display which keywords we're searching for
     st.info(f"Searching for keyword variations: {', '.join(keyword_variations[:10])}{'...' if len(keyword_variations) > 10 else ''}")
-
+    
     target_subreddits = subreddits if subreddits else ["all"]
-
+    
     # Create broader search queries
     search_queries = []
-
+    
     # Add main keyword variations to search
     for variation in keyword_variations[:5]:  # Limit to avoid too many API calls
         search_queries.append(f'title:"{variation}"')
-
+    
     # Add intent-based searches
     intent_queries = [
         'title:"looking for"', 'title:"need help"', 'title:"recommendations"',
         'title:"help me choose"', 'title:"advice"', 'title:"suggestions"'
     ]
     search_queries.extend(intent_queries)
-
+    
     for sub in target_subreddits:
         try:
             # Search with different queries
             for query in search_queries:
                 search_results = reddit.subreddit(sub).search(query, sort="top", limit=100, time_filter="year")
-
+                
                 for submission in search_results:
                     created = datetime.utcfromtimestamp(submission.created_utc)
                     if start_date <= created <= end_date and is_internal_link(submission):
-
+                        
                         # Enhanced matching: check title AND body
                         title_text = submission.title
                         body_text = submission.selftext if submission.is_self else ""
                         combined_text = f"{title_text} {body_text}"
-
+                        
                         # Check for keyword matches with fuzzy matching
                         has_match, matched_keyword, match_score = fuzzy_match_keywords(
                             combined_text, keyword_variations, fuzzy_threshold
                         )
-
+                        
                         if has_match:
                             # Apply comment filter
                             if comment_filter:
@@ -257,11 +246,11 @@ def get_enhanced_reddit_posts(keyword_input, start_date, end_date, subreddits=No
                                     continue
                                 elif operator == "<=" and not (submission.num_comments <= value):
                                     continue
-
+                            
                             # Calculate marketing relevance
                             marketing_score, relevance_reasons = calculate_marketing_relevance(title_text, body_text)
                             marketing_category = categorize_marketing_potential(marketing_score)
-
+                            
                             posts.append({
                                 "Title": title_text,
                                 "Body": body_text[:500] + "..." if len(body_text) > 500 else body_text,
@@ -277,16 +266,16 @@ def get_enhanced_reddit_posts(keyword_input, start_date, end_date, subreddits=No
                                 "Marketing Potential": marketing_category,
                                 "Relevance Reasons": "; ".join(relevance_reasons) if relevance_reasons else "No specific signals"
                             })
-
+                
                 if len(posts) >= 200:  # Increased limit
                     break
-
+            
             if len(posts) >= 200:
                 break
-
+                
         except Exception as e:
             st.warning(f"Error fetching posts from r/{sub}: {e}")
-
+    
     # Remove duplicates based on permalink
     seen_permalinks = set()
     unique_posts = []
@@ -294,7 +283,7 @@ def get_enhanced_reddit_posts(keyword_input, start_date, end_date, subreddits=No
         if post["Permalink"] not in seen_permalinks:
             seen_permalinks.add(post["Permalink"])
             unique_posts.append(post)
-
+    
     return unique_posts
 
 def generate_wordcloud(titles):
@@ -323,7 +312,7 @@ with col1:
 
 with col2:
     fuzzy_threshold = st.slider(
-        "Fuzzy Match Threshold",
+        "Fuzzy Match Threshold", 
         min_value=60, max_value=100, value=80,
         help="Lower values catch more variations but may include irrelevant matches"
     )
@@ -340,7 +329,7 @@ with col3:
     sub_input = st.text_input("Optional: Subreddits (comma separated, no 'r/' prefix)")
 with col4:
     marketing_filter = st.selectbox(
-        "Filter by Marketing Potential",
+        "Filter by Marketing Potential", 
         options=["All", "High", "Medium", "Low", "Very Low"]
     )
 
@@ -380,29 +369,29 @@ if st.button("🚀 Search Reddit Posts") and keyword_input:
             comment_filter=comment_filter,
             fuzzy_threshold=fuzzy_threshold
         )
-
+        
         if posts_data:
             df = pd.DataFrame(posts_data)
-
+            
             # Apply marketing potential filter
             if marketing_filter != "All":
                 df = df[df["Marketing Potential"] == marketing_filter]
-
+            
             # === Enhanced Filtering ===
             col9, col10 = st.columns(2)
             with col9:
                 subreddits = df["Subreddit"].unique().tolist()
                 selected_subs = st.multiselect("Filter by Subreddit", subreddits, default=subreddits)
                 df = df[df["Subreddit"].isin(selected_subs)]
-
+            
             with col10:
                 sort_options = ["Marketing Score", "Score", "Comments", "Match Score"]
                 sort_by = st.selectbox("Sort by", options=sort_options)
                 df = df.sort_values(by=sort_by, ascending=False)
-
+            
             # === Display Results ===
             st.success(f"Found {len(df)} relevant Reddit posts with marketing analysis.")
-
+            
             # Marketing potential summary
             if len(df) > 0:
                 potential_counts = df["Marketing Potential"].value_counts()
@@ -415,27 +404,27 @@ if st.button("🚀 Search Reddit Posts") and keyword_input:
                     st.metric("Low Potential", potential_counts.get("Low", 0))
                 with col14:
                     st.metric("Very Low Potential", potential_counts.get("Very Low", 0))
-
+            
             # Display data with enhanced columns
             display_columns = [
-                "Title", "Marketing Potential", "Marketing Score", "Subreddit",
-                "Score", "Comments", "Matched Keyword", "Match Score", "Created",
+                "Title", "Marketing Potential", "Marketing Score", "Subreddit", 
+                "Score", "Comments", "Matched Keyword", "Match Score", "Created", 
                 "Relevance Reasons", "Permalink"
             ]
             st.dataframe(df[display_columns], use_container_width=True)
-
+            
             # === CSV Download ===
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
-                "📥 Download Enhanced CSV",
-                data=csv,
-                file_name=f"enhanced_reddit_marketing_analysis.csv",
+                "📥 Download Enhanced CSV", 
+                data=csv, 
+                file_name=f"enhanced_reddit_marketing_analysis.csv", 
                 mime='text/csv'
             )
-
+            
             # === Enhanced Visualizations ===
             col15, col16 = st.columns(2)
-
+            
             with col15:
                 st.subheader("📊 Marketing Potential Distribution")
                 potential_chart = (
@@ -453,7 +442,7 @@ if st.button("🚀 Search Reddit Posts") and keyword_input:
                     .properties(width="container")
                 )
                 st.altair_chart(potential_chart, use_container_width=True)
-
+            
             with col16:
                 st.subheader("📈 Post Activity Over Time")
                 time_chart = (
@@ -468,7 +457,7 @@ if st.button("🚀 Search Reddit Posts") and keyword_input:
                     .properties(width="container")
                 )
                 st.altair_chart(time_chart, use_container_width=True)
-
+            
             # === Word Cloud ===
             st.subheader("☁️ Word Cloud from High-Potential Post Titles")
             high_potential_posts = df[df["Marketing Potential"].isin(["High", "Medium"])]
@@ -481,7 +470,7 @@ if st.button("🚀 Search Reddit Posts") and keyword_input:
                     st.pyplot(fig)
             else:
                 st.info("No high or medium potential posts found for word cloud generation.")
-
+        
         else:
             st.warning("No posts found. Try different keywords, subreddits, or adjust the fuzzy match threshold.")
 
@@ -489,25 +478,25 @@ if st.button("🚀 Search Reddit Posts") and keyword_input:
 with st.expander("ℹ️ How to Use This Enhanced Tool"):
     st.markdown("""
     ### Key Features:
-
+    
     **🔤 Smart Keyword Matching:**
     - Automatically generates plural/singular variations
     - Handles different spacing and hyphenation
     - Supports multiple keywords and synonyms
     - Uses fuzzy matching to catch variations
-
+    
     **🎯 Marketing Intent Analysis:**
     - Identifies buying intent signals ("looking for", "need help")
     - Scores posts by marketing potential
     - Filters out "showing off" posts
     - Highlights research and decision-making posts
-
+    
     **📊 Enhanced Search:**
     - Searches both titles AND post bodies
     - Combines keyword and intent-based searches
     - Removes duplicate posts automatically
     - Provides detailed match information
-
+    
     **💡 Tips:**
     - Use synonyms and related terms for better coverage
     - Lower fuzzy threshold catches more variations
