@@ -1,0 +1,8 @@
+# These are the requirements for Github
+streamlit
+praw
+pandas
+altairmatplotlib
+wordcloud
+fuzzywuzzy
+nflect
