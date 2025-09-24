@@ -296,7 +296,7 @@ def generate_wordcloud(titles):
 
 # === Streamlit UI ===
 st.set_page_config(page_title="Emmy's Reddit Marketing Explorer", layout="wide")
-st.title("🔍 Enhanced Reddit Marketing Explorer")
+st.title("🔍 Emmy's Reddit Marketing Explorer")
 st.markdown("*Advanced keyword matching with marketing intent analysis*")
 
 # === Enhanced Inputs ===
